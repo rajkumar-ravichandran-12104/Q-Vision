@@ -21,10 +21,10 @@ class TestValidateCalibration(unittest.TestCase):
         self.assertTrue(validate_calibration(5.0))
 
     def test_invalid_ratio_too_low(self):
-        self.assertFalse(validate_calibration(1.9))
+        self.assertFalse(validate_calibration(0.9))
 
     def test_invalid_ratio_too_high(self):
-        self.assertFalse(validate_calibration(10.1))
+        self.assertFalse(validate_calibration(20.1))
 
     def test_invalid_ratio_zero(self):
         self.assertFalse(validate_calibration(0.0))

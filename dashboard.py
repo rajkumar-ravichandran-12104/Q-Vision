@@ -5,7 +5,6 @@ Run with:
     streamlit run dashboard.py
 """
 
-import io
 import os
 import tempfile
 
@@ -45,13 +44,43 @@ with st.sidebar:
     truck_id = st.text_input("Truck ID", value="TRUCK-001")
     expected_material = st.selectbox(
         "Expected material (from invoice)",
-        options=["(none)", "6mm", "10mm", "20mm"],
+        options=["(none)", "6mm", "10mm", "12mm", "20mm"],
     )
     if expected_material == "(none)":
         expected_material = None
 
     st.divider()
-    st.subheader("📊 Global Statistics")
+    st.subheader("� Calibration")
+    st.caption("Camera is fixed at **1.5 m** from the truck bed.")
+    calibration_mode = st.radio(
+        "Calibration mode",
+        options=[
+            "Auto (detect ruler in image)",
+            "Manual (enter px/mm value)",
+        ],
+        index=1,
+        help="For a fixed-distance camera, use Manual mode with a pre-calibrated px/mm value.",
+    )
+    manual_px_per_mm = None
+    if calibration_mode == "Manual (enter px/mm value)":
+        manual_px_per_mm = st.number_input(
+            "Pixels per mm",
+            min_value=0.5,
+            max_value=50.0,
+            value=5.0,
+            step=0.5,
+            help="One-time setup: place a ruler at 1.5 m, take a photo, "
+                 "measure pixel distance between two marks, divide by mm. "
+                 "E.g. if 100 px spans 10 mm → enter 10.0",
+        )
+    st.caption(
+        "💡 **One-time calibration:** Place a ruler on the truck bed, "
+        "take a photo at 1.5 m, measure pixel distance of a known length, "
+        "divide pixels ÷ mm = your px/mm value."
+    )
+
+    st.divider()
+    st.subheader("�📊 Global Statistics")
     stats = get_stats()
     st.metric("Total Inspections", stats["total_inspections"])
     st.metric("Mixed-load Alerts", stats["mixed_count"])
@@ -96,7 +125,7 @@ with tab_analyse:
 
         if st.button("▶ Run Analysis", type="primary"):
             with st.spinner("Running pipeline…"):
-                result = run_pipeline(tmp_path, truck_id, expected_material)
+                result = run_pipeline(tmp_path, truck_id, expected_material, manual_px_per_mm)
 
             # --- Classification result ---
             label = result["label"]
@@ -105,6 +134,13 @@ with tab_analyse:
             is_mixed = result.get("is_mixed", False)
 
             st.divider()
+            # Prominent display of concluded material
+            st.header(f"🎯 Concluded Material: {label}")
+            if is_mixed:
+                st.error("🚫 Mixed load detected — dispatch blocked!")
+            else:
+                st.success(f"✅ Verified as {label} aggregate")
+
             r1, r2, r3 = st.columns(3)
             with r1:
                 if is_mixed:
@@ -132,14 +168,14 @@ with tab_analyse:
             if dist.get("count", 0) > 0:
                 st.subheader("📊 Particle Size Distribution")
                 # Re-run measurement to get raw diameters for histogram
+                hist_px_per_mm = result.get("px_per_mm", 5.0)
                 zones = extract_zones(image)
                 all_diameters = []
                 for zone in zones:
                     prep = preprocess(zone)
                     mask = segment_stones(prep)
                     cnts, _ = separate_touching_stones(mask)
-                    # Use a fallback px_per_mm of 5.0 (same as pipeline fallback)
-                    particles = measure_particles(cnts, 5.0)
+                    particles = measure_particles(cnts, hist_px_per_mm)
                     all_diameters.extend(p["diameter_mm"] for p in particles)
 
                 if all_diameters:
@@ -163,12 +199,12 @@ with tab_analyse:
                         {
                             "Metric": ["Count", "Mean (mm)", "Median (mm)", "Std (mm)", "Min (mm)", "Max (mm)"],
                             "Value": [
-                                dist["count"],
-                                f"{dist['mean_mm']:.2f}",
-                                f"{dist['median_mm']:.2f}",
-                                f"{dist['std_mm']:.2f}",
-                                f"{dist['min_mm']:.2f}",
-                                f"{dist['max_mm']:.2f}",
+                                int(dist["count"]),
+                                round(dist['mean_mm'], 2),
+                                round(dist['median_mm'], 2),
+                                round(dist['std_mm'], 2),
+                                round(dist['min_mm'], 2),
+                                round(dist['max_mm'], 2),
                             ],
                         }
                     )

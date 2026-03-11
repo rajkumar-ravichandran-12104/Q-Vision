@@ -31,7 +31,7 @@ def _color(text: str, code: str) -> str:
     return text
 
 
-def run_pipeline(image_path: str, truck_id: str, expected_material: str = None) -> dict:
+def run_pipeline(image_path: str, truck_id: str, expected_material: str = None, manual_px_per_mm: float = None) -> dict:
     """
     Run the full Q-Vision classification pipeline on a single image.
 
@@ -43,6 +43,10 @@ def run_pipeline(image_path: str, truck_id: str, expected_material: str = None) 
         Identifier for the truck.
     expected_material : str, optional
         Expected aggregate grade from invoice (e.g. "10mm").
+    manual_px_per_mm : float, optional
+        Manual override for px/mm calibration. If provided, skips ruler detection.
+        If not provided, uses FIXED_PX_PER_MM from config (if set), then falls
+        back to auto ruler detection.
 
     Returns
     -------
@@ -50,17 +54,26 @@ def run_pipeline(image_path: str, truck_id: str, expected_material: str = None) 
         Full result including classification, confidence, zone details, and
         optional mismatch information.
     """
+    from config import FIXED_PX_PER_MM
+
     # 1. Load and resize image
     image = load_image(image_path)
     image = resize_if_needed(image)
 
-    # 2. Detect ruler → px_per_mm
-    try:
-        px_per_mm = detect_ruler(image)
-        print(_color(f"  Calibration: {px_per_mm:.4f} px/mm", GREEN))
-    except ValueError as exc:
-        print(_color(f"  [WARNING] {exc}. Using fallback 5.0 px/mm.", YELLOW))
-        px_per_mm = 5.0  # sensible default for quarry images
+    # 2. Determine px_per_mm (priority: manual > config fixed > auto ruler)
+    if manual_px_per_mm and manual_px_per_mm > 0:
+        px_per_mm = manual_px_per_mm
+        print(_color(f"  Calibration (manual): {px_per_mm:.4f} px/mm", GREEN))
+    elif FIXED_PX_PER_MM and FIXED_PX_PER_MM > 0:
+        px_per_mm = FIXED_PX_PER_MM
+        print(_color(f"  Calibration (fixed camera): {px_per_mm:.4f} px/mm", GREEN))
+    else:
+        try:
+            px_per_mm = detect_ruler(image)
+            print(_color(f"  Calibration (auto ruler): {px_per_mm:.4f} px/mm", GREEN))
+        except ValueError as exc:
+            print(_color(f"  [WARNING] {exc}. Using fallback 5.0 px/mm.", YELLOW))
+            px_per_mm = 5.0  # sensible default for quarry images
 
     # 3. Extract 5 zones
     zones = extract_zones(image)
@@ -96,6 +109,9 @@ def run_pipeline(image_path: str, truck_id: str, expected_material: str = None) 
 
     # 7. Log result
     log_result(truck_id, image_path, classification)
+
+    # Include px_per_mm so callers (e.g. dashboard) can reuse the calibrated value
+    classification["px_per_mm"] = px_per_mm
 
     return classification
 

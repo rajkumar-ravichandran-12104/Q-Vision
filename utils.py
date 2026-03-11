@@ -4,13 +4,45 @@ utils.py — Shared utility functions for Q-Vision pipeline.
 
 import cv2
 import numpy as np
+from PIL import Image, ExifTags
 
 from config import MAX_IMAGE_DIM, MIN_CONTOUR_AREA
 
 
+def _apply_exif_orientation(path: str) -> np.ndarray:
+    """Read an image and apply EXIF orientation (handles iPhone photos)."""
+    pil_img = Image.open(path)
+    try:
+        exif = pil_img._getexif()
+        if exif:
+            orientation_key = next(
+                (k for k, v in ExifTags.TAGS.items() if v == "Orientation"), None
+            )
+            if orientation_key and orientation_key in exif:
+                orientation = exif[orientation_key]
+                if orientation == 3:
+                    pil_img = pil_img.rotate(180, expand=True)
+                elif orientation == 6:
+                    pil_img = pil_img.rotate(270, expand=True)
+                elif orientation == 8:
+                    pil_img = pil_img.rotate(90, expand=True)
+    except (AttributeError, StopIteration):
+        pass
+    arr = np.array(pil_img)
+    # PIL gives RGB; OpenCV uses BGR
+    if len(arr.shape) == 3 and arr.shape[2] == 3:
+        arr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
+    elif len(arr.shape) == 3 and arr.shape[2] == 4:
+        arr = cv2.cvtColor(arr, cv2.COLOR_RGBA2BGR)
+    return arr
+
+
 def load_image(path: str) -> np.ndarray:
-    """Load and validate an image from the given file path."""
-    image = cv2.imread(path)
+    """Load and validate an image, applying EXIF orientation if present."""
+    try:
+        image = _apply_exif_orientation(path)
+    except Exception:
+        image = cv2.imread(path)
     if image is None:
         raise FileNotFoundError(f"Could not load image: {path}")
     return image

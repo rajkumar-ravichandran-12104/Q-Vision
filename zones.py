@@ -64,21 +64,23 @@ def draw_zones(image: np.ndarray) -> np.ndarray:
         (255, 255, 0),  # Cyan  — bottom-right
         (255, 0, 255),  # Magenta — center
     ]
+    zone_labels = ["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5"]
     for i, (name, (xs, ys, xe, ye)) in enumerate(ZONE_LAYOUT.items()):
         x1 = int(xs * w)
         y1 = int(ys * h)
         x2 = int(xe * w)
         y2 = int(ye * h)
         color = colors[i % len(colors)]
-        cv2.rectangle(output, (x1, y1), (x2, y2), color, 2)
-        cv2.putText(
-            output,
-            f"Z{i + 1}:{name}",
-            (x1 + 5, y1 + 20),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            color,
-            1,
-            cv2.LINE_AA,
-        )
+        cv2.rectangle(output, (x1, y1), (x2, y2), color, 3)
+
+        # Draw label with dark background for readability
+        label = zone_labels[i]
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.8
+        thickness = 2
+        (tw, th), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+        tx = x1 + 8
+        ty = y1 + 30
+        cv2.rectangle(output, (tx - 4, ty - th - 6), (tx + tw + 4, ty + baseline + 4), (0, 0, 0), -1)
+        cv2.putText(output, label, (tx, ty), font, font_scale, color, thickness, cv2.LINE_AA)
     return output

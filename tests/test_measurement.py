@@ -77,19 +77,21 @@ class TestComputeDistribution(unittest.TestCase):
         self.assertEqual(result["pct_20mm"], 0.0)
 
     def test_all_10mm_class(self):
-        diameters = [9.0, 9.5, 10.0, 10.5, 11.0]
+        # All in 8-14mm display bin
+        diameters = [9.0, 10.0, 11.0, 12.0, 13.0]
         result = compute_distribution(diameters)
         self.assertEqual(result["pct_10mm"], 100.0)
         self.assertEqual(result["pct_6mm"], 0.0)
 
     def test_all_20mm_class(self):
-        diameters = [17.0, 18.0, 20.0, 22.0, 24.0]
+        # All in 18-50mm display bin
+        diameters = [19.0, 20.0, 25.0, 30.0, 35.0]
         result = compute_distribution(diameters)
         self.assertEqual(result["pct_20mm"], 100.0)
 
     def test_mixed_distribution(self):
-        # 2 in 6mm range, 2 in 10mm range, 1 other
-        diameters = [5.0, 6.0, 9.0, 11.0, 30.0]
+        # 2 in 6mm (0-8), 2 in 10mm (8-14), 1 oversize (>50)
+        diameters = [5.0, 6.0, 9.0, 12.0, 55.0]
         result = compute_distribution(diameters)
         self.assertEqual(result["pct_6mm"], 40.0)
         self.assertEqual(result["pct_10mm"], 40.0)

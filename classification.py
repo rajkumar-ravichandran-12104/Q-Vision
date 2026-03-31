@@ -4,15 +4,15 @@ mismatch detection for Q-Vision pipeline.
 """
 
 from config import CLASSIFICATION_RULES, MAJORITY_THRESHOLD
+import numpy as np
 
 
 def classify_zone(distribution: dict) -> dict:
     """
     Classify a single zone based on its size distribution.
 
-    The zone is labelled with the aggregate class (6mm / 10mm / 20mm) whose
-    percentage exceeds the configured ``min_pct`` threshold.  If no class
-    reaches its threshold, the zone is labelled "mixed".
+    The zone is labelled with the aggregate class whose percentage (using
+    the overlapping CLASSIFICATION_RULES ranges) exceeds min_pct.
 
     Parameters
     ----------
@@ -27,11 +27,18 @@ def classify_zone(distribution: dict) -> dict:
     best_label = "mixed"
     best_pct = 0.0
 
-    pct_map = {
-        "6mm":  distribution.get("pct_6mm", 0.0),
-        "10mm": distribution.get("pct_10mm", 0.0),
-        "20mm": distribution.get("pct_20mm", 0.0),
-    }
+    # Compute percentages using the (potentially overlapping) classification ranges
+    diameters = distribution.get("diameters", [])
+    total = len(diameters)
+    pct_map = {}
+    if total > 0:
+        arr = np.array(diameters, dtype=float)
+        for label, rule in CLASSIFICATION_RULES.items():
+            count = int(np.sum((arr >= rule["min_mm"]) & (arr < rule["max_mm"])))
+            pct_map[label] = round(100.0 * count / total, 2)
+    else:
+        for label in CLASSIFICATION_RULES:
+            pct_map[label] = 0.0
 
     for label, rule in CLASSIFICATION_RULES.items():
         pct = pct_map.get(label, 0.0)

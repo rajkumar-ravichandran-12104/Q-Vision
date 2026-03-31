@@ -225,16 +225,17 @@ with tab_analyse:
             st.subheader("🗺 Zone-by-Zone Results")
             zone_cols = st.columns(5)
             zone_names = ["Top-Left", "Top-Right", "Bottom-Left", "Bottom-Right", "Center"]
+            zone_colors = ["🔵", "🟢", "🔴", "🟡", "🟣"]
             for i, (zcol, zr) in enumerate(zip(zone_cols, result.get("zone_details", []))):
                 with zcol:
-                    st.markdown(f"**Zone {i+1}**")
-                    st.markdown(f"*{zone_names[i]}*")
+                    st.markdown(f"{zone_colors[i]} **Zone {i+1}**")
+                    st.caption(zone_names[i])
                     lbl = zr.get("label", "?")
                     conf = zr.get("confidence_pct", 0)
                     if lbl == "mixed":
-                        st.warning(f"{lbl}\n{conf:.0f}%")
+                        st.warning(f"{lbl} — {conf:.0f}%")
                     else:
-                        st.success(f"{lbl}\n{conf:.0f}%")
+                        st.success(f"{lbl} — {conf:.0f}%")
 
         # Clean up temp file
         try:

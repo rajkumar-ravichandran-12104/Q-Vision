@@ -6,7 +6,7 @@ import math
 import numpy as np
 import cv2
 
-from config import MIN_CONTOUR_AREA, CLASSIFICATION_RULES
+from config import MIN_CONTOUR_AREA, CLASSIFICATION_RULES, MAX_PARTICLE_DIAMETER_MM
 
 
 def measure_particles(contours: list, px_per_mm: float) -> list:
@@ -38,6 +38,8 @@ def measure_particles(contours: list, px_per_mm: float) -> list:
             continue
         diameter_px = 2.0 * math.sqrt(area_px / math.pi)
         diameter_mm = diameter_px / px_per_mm
+        if diameter_mm > MAX_PARTICLE_DIAMETER_MM:
+            continue  # skip ruler / artifacts
         particles.append(
             {
                 "diameter_mm": diameter_mm,
@@ -78,16 +80,24 @@ def compute_distribution(diameters_mm: list) -> dict:
             "std_mm": 0.0,
             "pct_6mm": 0.0,
             "pct_10mm": 0.0,
+            "pct_12mm": 0.0,
             "pct_20mm": 0.0,
             "pct_other": 0.0,
+            "diameters": [],
         }
 
     arr = np.array(diameters_mm, dtype=float)
     total = len(arr)
 
+    # Non-overlapping display bins for distribution percentages
+    display_bins = {
+        "6mm":  (0, 8),
+        "10mm": (8, 14),
+        "12mm": (14, 18),
+        "20mm": (18, 50),
+    }
     counts = {}
-    for key, rule in CLASSIFICATION_RULES.items():
-        lo, hi = rule["min_mm"], rule["max_mm"]
+    for key, (lo, hi) in display_bins.items():
         counts[key] = int(np.sum((arr >= lo) & (arr < hi)))
 
     in_class = sum(counts.values())
@@ -105,6 +115,8 @@ def compute_distribution(diameters_mm: list) -> dict:
         "std_mm": round(float(arr.std()), 3),
         "pct_6mm": pct(counts.get("6mm", 0)),
         "pct_10mm": pct(counts.get("10mm", 0)),
+        "pct_12mm": pct(counts.get("12mm", 0)),
         "pct_20mm": pct(counts.get("20mm", 0)),
         "pct_other": pct(other),
+        "diameters": diameters_mm,
     }

@@ -54,11 +54,17 @@ def run_pipeline(image_path: str, truck_id: str, expected_material: str = None, 
         Full result including classification, confidence, zone details, and
         optional mismatch information.
     """
-    from config import FIXED_PX_PER_MM
+    from config import FIXED_PX_PER_MM, RULER_CROP_TOP
 
     # 1. Load and resize image
     image = load_image(image_path)
     image = resize_if_needed(image)
+
+    # 1b. Crop out ruler area from top of image (if present)
+    if RULER_CROP_TOP > 0:
+        h = image.shape[0]
+        crop_rows = int(h * RULER_CROP_TOP)
+        image = image[crop_rows:, :, :]
 
     # 2. Determine px_per_mm (priority: manual > config fixed > auto ruler)
     if manual_px_per_mm and manual_px_per_mm > 0:
@@ -141,10 +147,11 @@ def print_result(result: dict) -> None:
         print(f"    Mean diameter   : {dist['mean_mm']:.2f} mm")
         print(f"    Std deviation   : {dist['std_mm']:.2f} mm")
         print(f"    Range           : {dist['min_mm']:.2f} – {dist['max_mm']:.2f} mm")
-        print(f"    % in 4-8 mm  (6mm class)  : {dist['pct_6mm']:.1f}%")
-        print(f"    % in 8-12 mm (10mm class) : {dist['pct_10mm']:.1f}%")
-        print(f"    % in 16-25mm (20mm class) : {dist['pct_20mm']:.1f}%")
-        print(f"    % other                   : {dist['pct_other']:.1f}%")
+        print(f"    % in 0-8mm   (6mm class)  : {dist['pct_6mm']:.1f}%")
+        print(f"    % in 8-14mm  (10mm class) : {dist['pct_10mm']:.1f}%")
+        print(f"    % in 14-18mm (12mm class) : {dist['pct_12mm']:.1f}%")
+        print(f"    % in 18-50mm (20mm class) : {dist['pct_20mm']:.1f}%")
+        print(f"    % other (oversize)         : {dist['pct_other']:.1f}%")
 
     if "mismatch" in result:
         print()

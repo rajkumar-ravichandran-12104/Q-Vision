@@ -44,7 +44,8 @@ def preprocess(image: np.ndarray) -> np.ndarray:
         tileGridSize=CLAHE_TILE_GRID_SIZE,
     )
     enhanced = clahe.apply(gray)
-    denoised = cv2.bilateralFilter(enhanced, d=9, sigmaColor=75, sigmaSpace=75)
+    # Gaussian blur to smooth stone surface texture before thresholding
+    denoised = cv2.GaussianBlur(enhanced, (9, 9), 0)
     return denoised
 
 
@@ -67,15 +68,19 @@ def segment_stones(preprocessed_image: np.ndarray) -> np.ndarray:
     np.ndarray
         Binary mask (uint8, values 0 or 255).
     """
-    binary = cv2.adaptiveThreshold(
-        preprocessed_image,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV,
-        ADAPTIVE_THRESH_BLOCK_SIZE,
-        ADAPTIVE_THRESH_C,
+    # Use Otsu thresholding — works for both light-on-dark and dark-on-light
+    _, binary = cv2.threshold(
+        preprocessed_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+
+    # Auto-detect polarity: stones should fill 15-75% of image.
+    # If foreground is too small, stones are likely bright (light-on-dark) and
+    # Otsu already marks them white.  If foreground is too large, invert.
+    fg_ratio = (binary > 0).sum() / binary.size
+    if fg_ratio > 0.75:
+        binary = cv2.bitwise_not(binary)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
     opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
     closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=2)
     return closed

@@ -7,15 +7,25 @@ import unittest
 from classification import check_mismatch, classify_load, classify_zone
 
 
-def _dist(pct_6=0, pct_10=0, pct_20=0):
-    """Helper: build a minimal distribution dict."""
-    other = max(0, 100 - pct_6 - pct_10 - pct_20)
+def _dist(pct_6=0, pct_10=0, pct_12=0, pct_20=0):
+    """Helper: build a distribution dict with diameters matching the percentages."""
+    total = 100
+    diameters = []
+    diameters.extend([5.0] * pct_6)     # 5mm -> 6mm class (0-8)
+    diameters.extend([11.0] * pct_10)   # 11mm -> 10mm class (8-14)
+    diameters.extend([15.0] * pct_12)   # 15mm -> 12mm class (10-18)
+    diameters.extend([25.0] * pct_20)   # 25mm -> 20mm class (14-50)
+    remaining = total - len(diameters)
+    diameters.extend([80.0] * remaining)  # outside all ranges
+    other = max(0, 100 - pct_6 - pct_10 - pct_12 - pct_20)
     return {
-        "count": 100,
+        "count": total,
         "pct_6mm": float(pct_6),
         "pct_10mm": float(pct_10),
+        "pct_12mm": float(pct_12),
         "pct_20mm": float(pct_20),
         "pct_other": float(other),
+        "diameters": diameters,
     }
 
 
@@ -44,13 +54,13 @@ class TestClassifyZone(unittest.TestCase):
         self.assertIn("distribution", result)
 
     def test_boundary_exactly_80_pct(self):
-        # Exactly at the threshold should classify as that class
-        result = classify_zone(_dist(pct_6=80))
+        # Exactly at threshold (60) should classify
+        result = classify_zone(_dist(pct_6=60))
         self.assertEqual(result["label"], "6mm")
 
     def test_below_threshold_is_mixed(self):
-        result = classify_zone(_dist(pct_6=79))
-        # 79% is below min_pct=80, so should NOT classify as 6mm
+        result = classify_zone(_dist(pct_6=59))
+        # 59% is below min_pct=60, so should NOT classify as 6mm
         self.assertNotEqual(result["label"], "6mm")
 
 

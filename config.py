@@ -5,12 +5,12 @@ config.py — All configurable parameters for Q-Vision pipeline.
 # ---------------------------------------------------------------------------
 # Fixed-camera calibration (recommended for production)
 # ---------------------------------------------------------------------------
-# Camera is mounted at a fixed distance of 1.5 m from the truck bed.
+# Camera is held at approximately 30–35 cm above the stone surface.
 # Set FIXED_PX_PER_MM to a known value to skip auto ruler detection.
-# To calibrate: place a ruler in the frame at 1.5 m, measure pixel distance
+# To calibrate: place a ruler in the frame at ~30 cm, measure pixel distance
 # between two marks of known mm apart, divide pixels by mm.
 # Set to None to use auto ruler detection instead.
-FIXED_CAMERA_DISTANCE_M = 1.5
+FIXED_CAMERA_DISTANCE_CM = 30  # approximate height in cm
 FIXED_PX_PER_MM = 4.7374  # corrected: 5731.2px ÷ 300mm × 0.248 scale
 
 # Classification rules: material type -> (min_mm, max_mm, min_pct)
@@ -23,7 +23,8 @@ CLASSIFICATION_RULES = {
 }
 
 # Minimum contour area in pixels to filter noise
-MIN_CONTOUR_AREA = 500
+# Lowered from 500 to 150 to detect 6mm stones (~340 px² after morphology)
+MIN_CONTOUR_AREA = 150
 
 # Maximum plausible stone diameter in mm (anything larger is ruler/artifact)
 MAX_PARTICLE_DIAMETER_MM = 60.0

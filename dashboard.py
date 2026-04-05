@@ -51,7 +51,7 @@ with st.sidebar:
 
     st.divider()
     st.subheader("� Calibration")
-    st.caption("Camera is fixed at **1.5 m** from the truck bed.")
+    st.caption("Camera held at approx **30–35 cm** above the stone surface.")
     calibration_mode = st.radio(
         "Calibration mode",
         options=[
@@ -67,15 +67,16 @@ with st.sidebar:
             "Pixels per mm",
             min_value=0.5,
             max_value=50.0,
-            value=5.0,
-            step=0.5,
-            help="One-time setup: place a ruler at 1.5 m, take a photo, "
+            value=4.7374,
+            step=0.1,
+            format="%.4f",
+            help="One-time setup: place a ruler at ~30 cm height, take a photo, "
                  "measure pixel distance between two marks, divide by mm. "
                  "E.g. if 100 px spans 10 mm → enter 10.0",
         )
     st.caption(
-        "💡 **One-time calibration:** Place a ruler on the truck bed, "
-        "take a photo at 1.5 m, measure pixel distance of a known length, "
+        "💡 **One-time calibration:** Place a ruler on the stone surface, "
+        "take a photo at ~30 cm height, measure pixel distance of a known length, "
         "divide pixels ÷ mm = your px/mm value."
     )
 

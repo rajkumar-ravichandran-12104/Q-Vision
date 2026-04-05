@@ -45,7 +45,8 @@ def preprocess(image: np.ndarray) -> np.ndarray:
     )
     enhanced = clahe.apply(gray)
     # Gaussian blur to smooth stone surface texture before thresholding
-    denoised = cv2.GaussianBlur(enhanced, (9, 9), 0)
+    # (5,5) kernel preserves 6mm stone boundaries while still removing noise
+    denoised = cv2.GaussianBlur(enhanced, (5, 5), 0)
     return denoised
 
 
@@ -80,9 +81,11 @@ def segment_stones(preprocessed_image: np.ndarray) -> np.ndarray:
     if fg_ratio > 0.75:
         binary = cv2.bitwise_not(binary)
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
-    closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=2)
+    # (5,5) kernel with 1 iteration: gentle enough to preserve 6mm stones,
+    # still effective at removing noise for 12/20mm
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=1)
+    closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=1)
     return closed
 
 

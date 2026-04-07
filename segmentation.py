@@ -81,11 +81,11 @@ def segment_stones(preprocessed_image: np.ndarray) -> np.ndarray:
     if fg_ratio > 0.75:
         binary = cv2.bitwise_not(binary)
 
-    # (5,5) kernel with 1 iteration: gentle enough to preserve 6mm stones,
-    # still effective at removing noise for 12/20mm
+    # (5,5) kernel with 2 iterations: removes inter-stone texture noise
+    # (fixes 12mm "mixed" misclass) while still preserving 6mm stones (~327 px²)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=1)
-    closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=1)
+    opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
+    closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=2)
     return closed
 
 

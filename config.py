@@ -18,7 +18,7 @@ FIXED_PX_PER_MM = 4.7374  # corrected: 5731.2px ÷ 300mm × 0.248 scale
 CLASSIFICATION_RULES = {
     "6mm":  {"min_mm": 0,  "max_mm": 8,  "min_pct": 60},
     "10mm": {"min_mm": 8,  "max_mm": 14, "min_pct": 60},
-    "12mm": {"min_mm": 10, "max_mm": 18, "min_pct": 60},
+    "12mm": {"min_mm": 8,  "max_mm": 20, "min_pct": 60},
     "20mm": {"min_mm": 14, "max_mm": 50, "min_pct": 60},
 }
 

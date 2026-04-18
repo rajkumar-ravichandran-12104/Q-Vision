@@ -7,21 +7,19 @@ import unittest
 from classification import check_mismatch, classify_load, classify_zone
 
 
-def _dist(pct_6=0, pct_10=0, pct_12=0, pct_20=0):
+def _dist(pct_6=0, pct_12=0, pct_20=0):
     """Helper: build a distribution dict with diameters matching the percentages."""
     total = 100
     diameters = []
     diameters.extend([5.0] * pct_6)     # 5mm -> 6mm class (0-8)
-    diameters.extend([11.0] * pct_10)   # 11mm -> 10mm class (8-14)
-    diameters.extend([15.0] * pct_12)   # 15mm -> 12mm class (10-18)
-    diameters.extend([25.0] * pct_20)   # 25mm -> 20mm class (14-50)
+    diameters.extend([15.0] * pct_12)   # 15mm -> 12mm class (8-18)
+    diameters.extend([25.0] * pct_20)   # 25mm -> 20mm class (18-50)
     remaining = total - len(diameters)
     diameters.extend([80.0] * remaining)  # outside all ranges
-    other = max(0, 100 - pct_6 - pct_10 - pct_12 - pct_20)
+    other = max(0, 100 - pct_6 - pct_12 - pct_20)
     return {
         "count": total,
         "pct_6mm": float(pct_6),
-        "pct_10mm": float(pct_10),
         "pct_12mm": float(pct_12),
         "pct_20mm": float(pct_20),
         "pct_other": float(other),
@@ -35,16 +33,16 @@ class TestClassifyZone(unittest.TestCase):
         self.assertEqual(result["label"], "6mm")
         self.assertGreaterEqual(result["confidence_pct"], 80.0)
 
-    def test_classify_10mm_dominant(self):
-        result = classify_zone(_dist(pct_10=90))
-        self.assertEqual(result["label"], "10mm")
+    def test_classify_12mm_dominant(self):
+        result = classify_zone(_dist(pct_12=90))
+        self.assertEqual(result["label"], "12mm")
 
     def test_classify_20mm_dominant(self):
         result = classify_zone(_dist(pct_20=82))
         self.assertEqual(result["label"], "20mm")
 
     def test_classify_mixed_no_dominant(self):
-        result = classify_zone(_dist(pct_6=30, pct_10=35, pct_20=20))
+        result = classify_zone(_dist(pct_6=30, pct_12=35, pct_20=20))
         self.assertEqual(result["label"], "mixed")
 
     def test_result_has_required_keys(self):
@@ -73,27 +71,27 @@ class TestClassifyLoad(unittest.TestCase):
         ]
 
     def test_five_zones_agree_high_confidence(self):
-        zones = self._make_zone_results(["10mm", "10mm", "10mm", "10mm", "10mm"])
+        zones = self._make_zone_results(["12mm", "12mm", "12mm", "12mm", "12mm"])
         result = classify_load(zones)
-        self.assertEqual(result["label"], "10mm")
+        self.assertEqual(result["label"], "12mm")
         self.assertFalse(result["is_mixed"])
         self.assertEqual(result["warning"], "")
 
     def test_four_zones_agree(self):
-        zones = self._make_zone_results(["6mm", "6mm", "6mm", "6mm", "10mm"])
+        zones = self._make_zone_results(["6mm", "6mm", "6mm", "6mm", "12mm"])
         result = classify_load(zones)
         self.assertEqual(result["label"], "6mm")
         self.assertFalse(result["is_mixed"])
 
     def test_three_zones_agree_warning(self):
-        zones = self._make_zone_results(["20mm", "20mm", "20mm", "10mm", "6mm"])
+        zones = self._make_zone_results(["20mm", "20mm", "20mm", "12mm", "6mm"])
         result = classify_load(zones)
         self.assertEqual(result["label"], "20mm")
         self.assertFalse(result["is_mixed"])
         self.assertIn("contamination", result["warning"].lower())
 
     def test_no_majority_mixed_load(self):
-        zones = self._make_zone_results(["6mm", "10mm", "20mm", "mixed", "mixed"])
+        zones = self._make_zone_results(["6mm", "12mm", "20mm", "mixed", "mixed"])
         result = classify_load(zones)
         self.assertTrue(result["is_mixed"])
         self.assertEqual(result["label"], "MIXED LOAD")
@@ -105,7 +103,7 @@ class TestClassifyLoad(unittest.TestCase):
         self.assertEqual(result["label"], "UNKNOWN")
 
     def test_result_has_required_keys(self):
-        zones = self._make_zone_results(["10mm"] * 5)
+        zones = self._make_zone_results(["12mm"] * 5)
         result = classify_load(zones)
         for key in ("label", "confidence", "zone_details", "warning", "is_mixed"):
             self.assertIn(key, result)
@@ -116,17 +114,17 @@ class TestCheckMismatch(unittest.TestCase):
         return {"label": label}
 
     def test_match(self):
-        result = check_mismatch(self._classification("10mm"), "10mm")
+        result = check_mismatch(self._classification("12mm"), "12mm")
         self.assertTrue(result["match"])
         self.assertIn("✅", result["message"])
 
     def test_mismatch(self):
-        result = check_mismatch(self._classification("6mm"), "10mm")
+        result = check_mismatch(self._classification("6mm"), "12mm")
         self.assertFalse(result["match"])
         self.assertIn("⚠️", result["message"])
 
     def test_case_insensitive(self):
-        result = check_mismatch(self._classification("10mm"), "10MM")
+        result = check_mismatch(self._classification("12mm"), "12MM")
         self.assertTrue(result["match"])
 
     def test_mixed_vs_expected(self):

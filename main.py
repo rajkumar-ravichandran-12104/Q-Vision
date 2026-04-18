@@ -11,6 +11,7 @@ from classification import check_mismatch, classify_load, classify_zone
 from logger import log_result
 from measurement import compute_distribution, measure_particles
 from segmentation import preprocess, segment_stones, separate_touching_stones
+from texture_classifier import detect_msand
 from utils import load_image, resize_if_needed
 from zones import extract_zones
 
@@ -87,10 +88,36 @@ def run_pipeline(image_path: str, truck_id: str, expected_material: str = None, 
     # 4. Process each zone
     zone_results = []
     all_diameters = []
+    msand_votes = 0
+    msand_details = []
     for idx, zone in enumerate(zones):
         preprocessed = preprocess(zone)
         binary_mask = segment_stones(preprocessed)
         contours, _ = separate_touching_stones(binary_mask)
+
+        # Stage 1: M-Sand texture check
+        msand_result = detect_msand(zone, len(contours))
+        msand_details.append(msand_result)
+        if msand_result["is_msand"]:
+            msand_votes += 1
+            # M-Sand zone: skip particle measurement, emit msand label
+            zone_result = {
+                "label": "msand",
+                "confidence_pct": msand_result["confidence"],
+                "distribution": compute_distribution([]),
+                "texture": msand_result,
+            }
+            zone_results.append(zone_result)
+            print(
+                f"  Zone {idx + 1}: label={'msand'!r:10s} "
+                f"conf={msand_result['confidence']:.1f}%  "
+                f"(texture: homog={msand_result['homogeneity']:.3f} "
+                f"contrast={msand_result['contrast']:.1f} "
+                f"contours={msand_result['contour_count']})"
+            )
+            continue
+
+        # Stage 2: Normal stone particle measurement
         particles = measure_particles(contours, px_per_mm)
         diameters = [p["diameter_mm"] for p in particles]
         all_diameters.extend(diameters)
@@ -106,6 +133,7 @@ def run_pipeline(image_path: str, truck_id: str, expected_material: str = None, 
     # 5. Overall classification via majority vote
     classification = classify_load(zone_results)
     classification["distribution"] = compute_distribution(all_diameters)
+    classification["msand_details"] = msand_details
 
     # 6. Check mismatch against invoice
     mismatch = None
@@ -148,8 +176,7 @@ def print_result(result: dict) -> None:
         print(f"    Std deviation   : {dist['std_mm']:.2f} mm")
         print(f"    Range           : {dist['min_mm']:.2f} – {dist['max_mm']:.2f} mm")
         print(f"    % in 0-8mm   (6mm class)  : {dist['pct_6mm']:.1f}%")
-        print(f"    % in 8-14mm  (10mm class) : {dist['pct_10mm']:.1f}%")
-        print(f"    % in 14-18mm (12mm class) : {dist['pct_12mm']:.1f}%")
+        print(f"    % in 8-18mm  (12mm class) : {dist['pct_12mm']:.1f}%")
         print(f"    % in 18-50mm (20mm class) : {dist['pct_20mm']:.1f}%")
         print(f"    % other (oversize)         : {dist['pct_other']:.1f}%")
 
@@ -173,7 +200,7 @@ def main() -> None:
     parser.add_argument(
         "--expected",
         default=None,
-        help="Expected material grade from invoice (e.g. 10mm)",
+        help="Expected material grade from invoice (e.g. 12mm)",
     )
     parser.add_argument(
         "--batch",

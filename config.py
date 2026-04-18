@@ -17,7 +17,6 @@ FIXED_PX_PER_MM = 4.7374  # corrected: 5731.2px ÷ 300mm × 0.248 scale
 # Ranges are non-overlapping equivalent diameters (area-based, wider than sieve sizes).
 CLASSIFICATION_RULES = {
     "6mm":  {"min_mm": 0,  "max_mm": 8,  "min_pct": 60},
-    "10mm": {"min_mm": 8,  "max_mm": 14, "min_pct": 60},
     "12mm": {"min_mm": 8,  "max_mm": 20, "min_pct": 60},
     "20mm": {"min_mm": 14, "max_mm": 50, "min_pct": 60},
 }
@@ -70,3 +69,16 @@ RULER_CROP_TOP = 0.12
 
 # Watershed distance transform threshold (fraction of max distance)
 WATERSHED_DIST_THRESH = 0.35
+
+# ---------------------------------------------------------------------------
+# M-Sand texture detection thresholds
+# ---------------------------------------------------------------------------
+# Real data shows M-Sand has LOW homogeneity (many tiny sharp edges) and
+# HIGH contrast vs stone (which has smooth uniform surfaces).
+# M-Sand: homogeneity 0.16–0.20, contrast 168–224, energy < 0.001
+# 6mm:    homogeneity 0.19–0.24, contrast 158–213, energy 0.0004–0.001
+# Stone:  homogeneity 0.24–0.49, contrast 35–135,  energy > 0.001
+MSAND_HOMOGENEITY_THRESH = 0.19   # zone <= this → texture looks like sand
+MSAND_CONTRAST_THRESH = 155.0     # zone >= this → texture looks like sand
+MSAND_ENERGY_THRESH = 0.001       # zone <= this → texture looks like sand
+MSAND_MAX_CONTOUR_COUNT = 600     # sand can produce many tiny contours

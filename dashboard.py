@@ -44,7 +44,7 @@ with st.sidebar:
     truck_id = st.text_input("Truck ID", value="TRUCK-001")
     expected_material = st.selectbox(
         "Expected material (from invoice)",
-        options=["(none)", "6mm", "10mm", "12mm", "20mm"],
+        options=["(none)", "6mm", "12mm", "20mm", "msand"],
     )
     if expected_material == "(none)":
         expected_material = None
@@ -114,14 +114,14 @@ with tab_analyse:
             st.image(
                 cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
                 caption="Original image",
-                use_container_width=True,
+                width="stretch",
             )
         with col_zones:
             zone_vis = draw_zones(image)
             st.image(
                 cv2.cvtColor(zone_vis, cv2.COLOR_BGR2RGB),
                 caption="Sampling zones",
-                use_container_width=True,
+                width="stretch",
             )
 
         if st.button("▶ Run Analysis", type="primary"):
@@ -139,6 +139,8 @@ with tab_analyse:
             st.header(f"🎯 Concluded Material: {label}")
             if is_mixed:
                 st.error("🚫 Mixed load detected — dispatch blocked!")
+            elif label == "msand":
+                st.success("✅ Verified as M-Sand (texture-based detection)")
             else:
                 st.success(f"✅ Verified as {label} aggregate")
 
@@ -166,6 +168,25 @@ with tab_analyse:
 
             # --- Size distribution histogram ---
             dist = result.get("distribution", {})
+
+            # --- M-Sand texture details (if detected) ---
+            msand_details = result.get("msand_details", [])
+            msand_zone_count = sum(1 for d in msand_details if d.get("is_msand"))
+            if msand_zone_count > 0:
+                st.subheader("🏖 M-Sand Texture Analysis")
+                st.info(f"{msand_zone_count}/5 zones detected as M-Sand via texture analysis")
+                tex_cols = st.columns(5)
+                for i, (tc, md) in enumerate(zip(tex_cols, msand_details)):
+                    with tc:
+                        st.markdown(f"**Zone {i+1}**")
+                        st.metric("Homogeneity", f"{md['homogeneity']:.3f}")
+                        st.metric("Contrast", f"{md['contrast']:.1f}")
+                        st.metric("Contours", md['contour_count'])
+                        if md['is_msand']:
+                            st.success("M-Sand ✓")
+                        else:
+                            st.caption("Stone")
+
             if dist.get("count", 0) > 0:
                 st.subheader("📊 Particle Size Distribution")
                 # Re-run measurement to get raw diameters for histogram
@@ -212,10 +233,10 @@ with tab_analyse:
                 with col_b:
                     st.table(
                         {
-                            "Size Class": ["4-8 mm (6mm)", "8-12 mm (10mm)", "16-25 mm (20mm)", "Other"],
+                            "Size Class": ["0-8 mm (6mm)", "8-18 mm (12mm)", "18-50 mm (20mm)", "Other"],
                             "% of particles": [
                                 f"{dist['pct_6mm']:.1f}%",
-                                f"{dist['pct_10mm']:.1f}%",
+                                f"{dist['pct_12mm']:.1f}%",
                                 f"{dist['pct_20mm']:.1f}%",
                                 f"{dist['pct_other']:.1f}%",
                             ],
@@ -233,7 +254,9 @@ with tab_analyse:
                     st.caption(zone_names[i])
                     lbl = zr.get("label", "?")
                     conf = zr.get("confidence_pct", 0)
-                    if lbl == "mixed":
+                    if lbl == "msand":
+                        st.info(f"{lbl} — {conf:.0f}%")
+                    elif lbl == "mixed":
                         st.warning(f"{lbl} — {conf:.0f}%")
                     else:
                         st.success(f"{lbl} — {conf:.0f}%")
@@ -255,6 +278,6 @@ with tab_history:
             ["id", "timestamp", "truck_id", "classification", "confidence", "warning", "is_mixed"]
         ]
         df["is_mixed"] = df["is_mixed"].map({0: "No", 1: "Yes"})
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
     else:
         st.info("No inspection records found. Run an analysis to populate the log.")

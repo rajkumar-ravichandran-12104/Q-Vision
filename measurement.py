@@ -68,7 +68,7 @@ def compute_distribution(diameters_mm: list) -> dict:
         Keys:
         - 'count': total particle count
         - 'min_mm', 'max_mm', 'mean_mm', 'median_mm', 'std_mm': basic stats
-        - 'pct_6mm', 'pct_10mm', 'pct_20mm', 'pct_other': percentage in each class
+        - 'pct_6mm', 'pct_12mm', 'pct_20mm', 'pct_other': percentage in each class
     """
     if not diameters_mm:
         return {
@@ -79,7 +79,6 @@ def compute_distribution(diameters_mm: list) -> dict:
             "median_mm": 0.0,
             "std_mm": 0.0,
             "pct_6mm": 0.0,
-            "pct_10mm": 0.0,
             "pct_12mm": 0.0,
             "pct_20mm": 0.0,
             "pct_other": 0.0,
@@ -92,8 +91,7 @@ def compute_distribution(diameters_mm: list) -> dict:
     # Non-overlapping display bins for distribution percentages
     display_bins = {
         "6mm":  (0, 8),
-        "10mm": (8, 14),
-        "12mm": (14, 18),
+        "12mm": (8, 18),
         "20mm": (18, 50),
     }
     counts = {}
@@ -114,7 +112,6 @@ def compute_distribution(diameters_mm: list) -> dict:
         "median_mm": round(float(np.median(arr)), 3),
         "std_mm": round(float(arr.std()), 3),
         "pct_6mm": pct(counts.get("6mm", 0)),
-        "pct_10mm": pct(counts.get("10mm", 0)),
         "pct_12mm": pct(counts.get("12mm", 0)),
         "pct_20mm": pct(counts.get("20mm", 0)),
         "pct_other": pct(other),

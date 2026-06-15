@@ -12,6 +12,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import streamlit as st
+import streamlit.components.v1 as components
 
 from classification import check_mismatch, classify_load, classify_zone
 from logger import get_history, get_stats, init_db
@@ -163,8 +164,73 @@ with tab_analyse:
                 mm = result["mismatch"]
                 if mm["match"]:
                     st.success(mm["message"])
+                    # Success chime — longer two-tone
+                    components.html("""
+                    <script>
+                    (function() {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        ctx.resume().then(() => {
+                            function tone(freq, start, dur) {
+                                const o = ctx.createOscillator();
+                                const g = ctx.createGain();
+                                o.connect(g); g.connect(ctx.destination);
+                                o.type = 'sine'; o.frequency.value = freq;
+                                g.gain.setValueAtTime(0.3, ctx.currentTime + start);
+                                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur);
+                                o.start(ctx.currentTime + start);
+                                o.stop(ctx.currentTime + start + dur);
+                            }
+                            tone(660, 0, 0.3); tone(880, 0.3, 0.5);
+                        });
+                    })();
+                    </script>
+                    """, height=0)
                 else:
                     st.error(mm["message"])
+                    st.toast(f"⚠️ MISMATCH: {mm['message']}", icon="🚨")
+                    # Alert buzzer
+                    components.html("""
+                    <script>
+                    (function() {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        ctx.resume().then(() => {
+                            function beep(freq, start, dur) {
+                                const o = ctx.createOscillator();
+                                const g = ctx.createGain();
+                                o.connect(g); g.connect(ctx.destination);
+                                o.type = 'square'; o.frequency.value = freq;
+                                g.gain.setValueAtTime(0.4, ctx.currentTime + start);
+                                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur);
+                                o.start(ctx.currentTime + start);
+                                o.stop(ctx.currentTime + start + dur);
+                            }
+                            beep(400, 0, 0.2); beep(300, 0.3, 0.3);
+                        });
+                    })();
+                    </script>
+                    """, height=0)
+
+            @st.dialog("🚨 Material Mismatch Alert")
+            def show_mismatch_popup(mismatch_msg, truck, expected, detected):
+                st.error(mismatch_msg)
+                st.markdown(f"""
+| Detail | Value |
+|--------|-------|
+| **Truck ID** | {truck} |
+| **Expected** | {expected} |
+| **Detected** | {detected} |
+""")
+                st.warning("⛔ Dispatch should be BLOCKED until verified.")
+                if st.button("Acknowledge"):
+                    st.rerun()
+
+            if expected_material and "mismatch" in result and not result["mismatch"]["match"]:
+                show_mismatch_popup(
+                    result["mismatch"]["message"],
+                    truck_id,
+                    expected_material,
+                    label,
+                )
 
             # --- Size distribution histogram ---
             dist = result.get("distribution", {})
